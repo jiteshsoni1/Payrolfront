@@ -41,6 +41,7 @@ export const api = {
 
   // employee self-service
   getMyPayslips: () => req('/me/payslips'),
+  getMyAttendance: (year, month) => req(`/me/attendance?year=${year}&month=${month}`),
 
   // admin (HR)
   listEmployees: () => req('/employees'),
