@@ -1,6 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-const GRID = '1fr 150px auto 34px';
+// track narrow screens so the row can reflow on mobile
+function useNarrow(bp = 560) {
+  const [n, setN] = useState(() => typeof window !== 'undefined' && window.matchMedia(`(max-width:${bp}px)`).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${bp}px)`);
+    const on = () => setN(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [bp]);
+  return n;
+}
+
 const inputStyle = {
   width: '100%', background: 'var(--field)', color: 'var(--ink)',
   border: '1px solid var(--field-line)', borderRadius: 7, padding: '8px 10px',
@@ -8,6 +20,7 @@ const inputStyle = {
 };
 
 export default function Roster({ employees, onAdd, onPatch, onCommit, onRemove, onCreateLogin }) {
+  const narrow = useNarrow();
   const [openId, setOpenId] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,6 +43,16 @@ export default function Roster({ employees, onAdd, onPatch, onCommit, onRemove, 
     } finally { setBusy(false); }
   };
 
+  const rowStyle = { display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--rule)' };
+  const nameCell = { flex: narrow ? '1 1 100%' : '1 1 180px', minWidth: 0 };
+  const salCell = { flex: narrow ? '1 1 120px' : '0 0 150px' };
+
+  const loginBtnStyle = (has) => ({
+    flex: '0 0 auto', border: '1px solid var(--field-line)',
+    background: has ? 'var(--tint)' : 'var(--field)', color: has ? 'var(--brand)' : 'var(--muted)',
+    borderRadius: 7, padding: '7px 10px', fontSize: 12, fontFamily: 'var(--sys)', cursor: 'pointer', whiteSpace: 'nowrap',
+  });
+
   return (
     <section className="panel">
       <p className="phead">
@@ -39,20 +62,27 @@ export default function Roster({ employees, onAdd, onPatch, onCommit, onRemove, 
 
       {okMsg && <div className="banner ok" style={{ marginBottom: 12 }}><span>{okMsg}</span></div>}
 
-      <div className="rlist">
-        <div className="rrow rhdr" style={{ gridTemplateColumns: GRID }}>
-          <span>Name</span><span className="r">Monthly salary</span><span>Login</span><span />
-        </div>
+      <div>
+        {!narrow && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '0 0 9px', borderBottom: '1px solid var(--rule-strong)' }}>
+            <span style={{ flex: '1 1 180px', fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Name</span>
+            <span style={{ flex: '0 0 150px', textAlign: 'right', paddingRight: 6, fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Monthly salary</span>
+            <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Login</span>
+            <span style={{ width: 30 }} />
+          </div>
+        )}
 
         {employees.map((e) => (
           <div key={e._id}>
-            <div className="rrow" style={{ gridTemplateColumns: GRID }}>
-              <input
-                type="text" value={e.name}
-                onChange={(ev) => onPatch(e._id, { name: ev.target.value })}
-                onBlur={(ev) => onCommit(e._id, { name: ev.target.value })}
-              />
-              <div className="money-in">
+            <div style={rowStyle}>
+              <div style={nameCell}>
+                <input
+                  type="text" style={{ width: '100%' }} value={e.name}
+                  onChange={(ev) => onPatch(e._id, { name: ev.target.value })}
+                  onBlur={(ev) => onCommit(e._id, { name: ev.target.value })}
+                />
+              </div>
+              <div className="money-in" style={salCell}>
                 <span className="cur">&#8377;</span>
                 <input
                   type="number" min="0" step="500" value={e.monthlySalary}
@@ -64,17 +94,11 @@ export default function Roster({ employees, onAdd, onPatch, onCommit, onRemove, 
                 type="button"
                 onClick={() => (openId === e._id ? close() : open(e))}
                 title={e.loginEmail ? `Login: ${e.loginEmail} — click to reset password` : 'Create a login for this employee'}
-                style={{
-                  border: '1px solid var(--field-line)',
-                  background: e.loginEmail ? 'var(--tint)' : 'var(--field)',
-                  color: e.loginEmail ? 'var(--brand)' : 'var(--muted)',
-                  borderRadius: 7, padding: '7px 10px', fontSize: 12, fontFamily: 'var(--sys)',
-                  cursor: 'pointer', whiteSpace: 'nowrap',
-                }}
+                style={loginBtnStyle(!!e.loginEmail)}
               >
                 {e.loginEmail ? '\u2713 Login set' : 'Set up login'}
               </button>
-              <button className="xbtn" title="Remove" onClick={() => onRemove(e._id)}>&times;</button>
+              <button className="xbtn" style={{ flex: '0 0 auto' }} title="Remove" onClick={() => onRemove(e._id)}>&times;</button>
             </div>
 
             {openId === e._id && (
