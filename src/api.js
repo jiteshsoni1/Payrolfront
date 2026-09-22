@@ -39,10 +39,15 @@ export const api = {
   me: () => req('/auth/me'),
   logout: () => clearToken(),
 
+  // employee self-service
+  getMyPayslips: () => req('/me/payslips'),
+
+  // admin (HR)
   listEmployees: () => req('/employees'),
   createEmployee: (body) => req('/employees', { method: 'POST', body: JSON.stringify(body) }),
   updateEmployee: (id, body) => req(`/employees/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteEmployee: (id) => req(`/employees/${id}`, { method: 'DELETE' }),
+  createEmployeeLogin: (id, body) => req(`/employees/${id}/login`, { method: 'POST', body: JSON.stringify(body) }),
   listAttendance: (year, month) => req(`/attendance?year=${year}&month=${month}`),
   markAttendance: (body) => req('/attendance', { method: 'PUT', body: JSON.stringify(body) }),
   runPayroll: (year, month) => req(`/payroll/run?year=${year}&month=${month}`),

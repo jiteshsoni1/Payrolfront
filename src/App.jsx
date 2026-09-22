@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api, API_BASE, getToken, setUnauthorizedHandler } from './api';
 import { daysInMonth } from './lib/format';
 import Login from './components/Login.jsx';
+import EmployeePortal from './components/EmployeePortal.jsx';
 import PolicyBar from './components/PolicyBar.jsx';
 import Roster from './components/Roster.jsx';
 import MusterMatrix from './components/MusterMatrix.jsx';
@@ -27,8 +28,9 @@ export default function App() {
   }, []);
 
   const logout = () => { api.logout(); setUser(null); };
+  const isAdmin = user?.role === 'admin';
 
-  // ---- payroll state ----
+  // ---- payroll state (admin) ----
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(9); // 1-12
 
@@ -80,8 +82,7 @@ export default function App() {
     }
   }, [year, month]);
 
-  // only load data once signed in
-  useEffect(() => { if (user) loadMonth(); }, [loadMonth, user]);
+  useEffect(() => { if (isAdmin) loadMonth(); }, [loadMonth, isAdmin]);
 
   const refreshRun = useCallback(async () => {
     try { setRun(await api.runPayroll(year, month)); } catch (e) { setError(e.message); }
@@ -136,6 +137,13 @@ export default function App() {
     } catch (e) { setError(e.message); } finally { setSaving(false); }
   };
 
+  // create/reset an employee's login; returns { loginEmail } so the roster can reflect it
+  const createLogin = async (empId, creds) => {
+    const res = await api.createEmployeeLogin(empId, creds);
+    setEmployees((prev) => prev.map((e) => (String(e._id) === String(empId) ? { ...e, loginEmail: res.loginEmail } : e)));
+    return res;
+  };
+
   const savePolicy = async (patch) => {
     setSaving(true);
     try { await api.updatePolicy(patch); await refreshRun(); }
@@ -151,14 +159,18 @@ export default function App() {
     } catch (e) { setError(e.message); } finally { setSaving(false); }
   };
 
-  // ---- auth gates ----
+  // ---- gates ----
   if (authChecking) {
     return <div className="wrap" style={{ marginTop: 90, textAlign: 'center', color: 'var(--muted)' }}>Loading…</div>;
   }
   if (!user) {
     return <Login onLogin={setUser} />;
   }
+  if (user.role === 'employee') {
+    return <EmployeePortal user={user} onLogout={logout} />;
+  }
 
+  // ---- admin app ----
   const nDays = daysInMonth(year, month);
   const selectedRow = run?.rows?.find((r) => String(r.employeeId) === String(selectedId));
   const selectedEmp = employees.find((e) => String(e._id) === String(selectedId));
@@ -195,6 +207,7 @@ export default function App() {
         <Roster
           employees={employees} onAdd={addEmployee}
           onPatch={patchEmployeeLocal} onCommit={commitEmployee} onRemove={removeEmployee}
+          onCreateLogin={createLogin}
         />
         <MusterMatrix
           employees={employees} attMap={attMap} year={year} month={month} nDays={nDays}
