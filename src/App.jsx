@@ -8,11 +8,12 @@ import Roster from './components/Roster.jsx';
 import MusterMatrix from './components/MusterMatrix.jsx';
 import PayrollRun from './components/PayrollRun.jsx';
 import PayslipDetail from './components/PayslipDetail.jsx';
+import Hiring from './components/Hiring.jsx';
 
 export default function App() {
-  // ---- auth ----
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
+  const [view, setView] = useState('payroll'); // 'payroll' | 'hiring'
 
   useEffect(() => {
     setUnauthorizedHandler(() => setUser(null));
@@ -30,12 +31,11 @@ export default function App() {
   const logout = () => { api.logout(); setUser(null); };
   const isAdmin = user?.role === 'admin';
 
-  // ---- payroll state (admin) ----
   const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(9); // 1-12
+  const [month, setMonth] = useState(9);
 
   const [employees, setEmployees] = useState([]);
-  const [attMap, setAttMap] = useState({}); // { empId: { day: status } }
+  const [attMap, setAttMap] = useState({});
   const [run, setRun] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [brush, setBrush] = useState('absent');
@@ -137,7 +137,6 @@ export default function App() {
     } catch (e) { setError(e.message); } finally { setSaving(false); }
   };
 
-  // create/reset an employee's login; returns { loginEmail } so the roster can reflect it
   const createLogin = async (empId, creds) => {
     const res = await api.createEmployeeLogin(empId, creds);
     setEmployees((prev) => prev.map((e) => (String(e._id) === String(empId) ? { ...e, loginEmail: res.loginEmail } : e)));
@@ -159,7 +158,6 @@ export default function App() {
     } catch (e) { setError(e.message); } finally { setSaving(false); }
   };
 
-  // ---- gates ----
   if (authChecking) {
     return <div className="wrap" style={{ marginTop: 90, textAlign: 'center', color: 'var(--muted)' }}>Loading…</div>;
   }
@@ -170,10 +168,22 @@ export default function App() {
     return <EmployeePortal user={user} onLogout={logout} />;
   }
 
-  // ---- admin app ----
   const nDays = daysInMonth(year, month);
   const selectedRow = run?.rows?.find((r) => String(r.employeeId) === String(selectedId));
   const selectedEmp = employees.find((e) => String(e._id) === String(selectedId));
+
+  const tab = (key, label) => (
+    <button
+      onClick={() => setView(key)}
+      style={{
+        border: '1px solid var(--field-line)',
+        background: view === key ? 'var(--brand)' : 'var(--field)',
+        color: view === key ? '#fff' : 'var(--muted)',
+        borderRadius: 7, padding: '6px 14px', fontSize: 13, fontWeight: 600,
+        fontFamily: 'var(--sys)', cursor: 'pointer',
+      }}
+    >{label}</button>
+  );
 
   return (
     <div className="wrap">
@@ -184,6 +194,11 @@ export default function App() {
           <button className="btn" style={{ padding: '6px 12px', fontSize: 12.5 }} onClick={logout}>Sign out</button>
         </div>
       </header>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {tab('payroll', 'Payroll')}
+        {tab('hiring', 'Hiring')}
+      </div>
 
       {error && (
         <div className="banner err">
@@ -198,24 +213,28 @@ export default function App() {
         </div>
       )}
 
-      <div className="sheet">
-        <PolicyBar
-          year={year} setYear={setYear} month={month} setMonth={setMonth}
-          nDays={nDays} saving={saving} loading={loading} onFinalize={finalize}
-          policy={run?.policy} onSavePolicy={savePolicy}
-        />
-        <Roster
-          employees={employees} onAdd={addEmployee}
-          onPatch={patchEmployeeLocal} onCommit={commitEmployee} onRemove={removeEmployee}
-          onCreateLogin={createLogin}
-        />
-        <MusterMatrix
-          employees={employees} attMap={attMap} year={year} month={month} nDays={nDays}
-          brush={brush} setBrush={setBrush} onMark={markCell}
-        />
-        <PayrollRun run={run} loading={loading} selectedId={selectedId} onSelect={setSelectedId} />
-        <PayslipDetail row={selectedRow} emp={selectedEmp} year={year} month={month} />
-      </div>
+      {view === 'hiring' ? (
+        <Hiring onRosterChanged={loadMonth} />
+      ) : (
+        <div className="sheet">
+          <PolicyBar
+            year={year} setYear={setYear} month={month} setMonth={setMonth}
+            nDays={nDays} saving={saving} loading={loading} onFinalize={finalize}
+            policy={run?.policy} onSavePolicy={savePolicy}
+          />
+          <Roster
+            employees={employees} onAdd={addEmployee}
+            onPatch={patchEmployeeLocal} onCommit={commitEmployee} onRemove={removeEmployee}
+            onCreateLogin={createLogin}
+          />
+          <MusterMatrix
+            employees={employees} attMap={attMap} year={year} month={month} nDays={nDays}
+            brush={brush} setBrush={setBrush} onMark={markCell}
+          />
+          <PayrollRun run={run} loading={loading} selectedId={selectedId} onSelect={setSelectedId} />
+          <PayslipDetail row={selectedRow} emp={selectedEmp} year={year} month={month} />
+        </div>
+      )}
 
       <div className="foot">
         <span>MusterPay client &middot; React + Vite &middot; talking to the MusterPay API.</span>

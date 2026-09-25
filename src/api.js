@@ -55,4 +55,12 @@ export const api = {
   finalize: (year, month) => req(`/payroll/finalize?year=${year}&month=${month}`, { method: 'POST' }),
   getPolicy: () => req('/policy'),
   updatePolicy: (body) => req('/policy', { method: 'PATCH', body: JSON.stringify(body) }),
+
+  // hiring
+  listCandidates: () => req('/candidates'),
+  createCandidate: (body) => req('/candidates', { method: 'POST', body: JSON.stringify(body) }),
+  updateCandidate: (id, body) => req(`/candidates/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteCandidate: (id) => req(`/candidates/${id}`, { method: 'DELETE' }),
+  acceptCandidate: (id, body) => req(`/candidates/${id}/accept`, { method: 'POST', body: JSON.stringify(body) }),
+  rejectCandidate: (id, body) => req(`/candidates/${id}/reject`, { method: 'POST', body: JSON.stringify(body) }),
 };
